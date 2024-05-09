@@ -1,11 +1,14 @@
 import { Miniflare } from "miniflare";
 
 const modules = {
-  "/a.cjs": {
-    commonJsModule: 'module.exports = "B";',
+  "/b.cjs": {
+    commonJsModule: 'module.exports = "B" + "-" + require("./c.cjs").default;',
   },
   "/a.mjs": {
     esModule: 'export default "A";',
+  },
+  "/c.cjs": {
+    commonJsModule: 'module.exports = "C";',
   },
 };
 
@@ -47,8 +50,9 @@ const mf = new Miniflare({
           contents: `
             export default {
               async fetch() {
+                const { default: a } = await import("./a.mjs");
                 const { default: myRequire } = await import("./my-require.cjs");
-                return new Response(myRequire("a.cjs"));
+                return new Response(a + "_" + myRequire("./b.cjs"));
               }
             }
           `,
