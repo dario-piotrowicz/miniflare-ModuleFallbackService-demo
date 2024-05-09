@@ -1,5 +1,14 @@
 import { Miniflare } from "miniflare";
 
+const modules = {
+  "/a.cjs": {
+    commonJsModule: 'module.exports = "B";',
+  },
+  "/a.mjs": {
+    esModule: 'export default "A";',
+  },
+};
+
 const mf = new Miniflare({
   unsafeModuleFallbackService(request) {
     const resolveMethod = request.headers.get("X-Resolve-Method");
@@ -14,12 +23,15 @@ const mf = new Miniflare({
     }
 
     const name = specifier.replace(/^\//, "");
+
+    if (!modules[specifier]) {
+      return new Response(null, { status: 404 });
+    }
+
     return new Response(
       JSON.stringify({
         name,
-        esModule: `
-        export default "A";
-        `,
+        ...modules[specifier],
       })
     );
   },
@@ -27,18 +39,25 @@ const mf = new Miniflare({
     {
       name: "entrypoint",
       modulesRoot: "/",
+      compatibilityFlags: ["nodejs_compat"],
       modules: [
         {
           type: "ESModule",
-          path: "/virtual/index.mjs",
+          path: "/index.mjs",
           contents: `
             export default {
               async fetch() {
-                const aMod = await import("a");
-                const a = aMod.default;
-                return new Response(a);
+                const { default: myRequire } = await import("./my-require.cjs");
+                return new Response(myRequire("a.cjs"));
               }
             }
+          `,
+        },
+        {
+          type: "NodeJsCompatModule",
+          path: "/my-require.cjs",
+          contents: `
+            module.exports = (...args) => require(...args);
           `,
         },
       ],
