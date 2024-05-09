@@ -1,0 +1,16 @@
+{
+  "name": "miniflare-modulesfallback-demo",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "devDependencies": {
+    "miniflare": "^3.20240129.3"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
