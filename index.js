@@ -1,14 +1,8 @@
 import { Miniflare } from "miniflare";
 
 const modules = {
-  "/b.cjs": {
-    commonJsModule: 'module.exports = "B" + "-" + require("./c.cjs").default;',
-  },
-  "/a.mjs": {
-    esModule: 'export default "A";',
-  },
-  "/c.cjs": {
-    commonJsModule: 'module.exports = "C";',
+  "/hello.js": {
+    esModule: 'export const hello = "Hello";',
   },
 };
 
@@ -25,15 +19,12 @@ const mf = new Miniflare({
       throw new Error("no specifier provided");
     }
 
-    const name = specifier.replace(/^\//, "");
-
     if (!modules[specifier]) {
       return new Response(null, { status: 404 });
     }
 
     return new Response(
       JSON.stringify({
-        name,
         ...modules[specifier],
       })
     );
@@ -50,18 +41,10 @@ const mf = new Miniflare({
           contents: `
             export default {
               async fetch() {
-                const { default: a } = await import("./a.mjs");
-                const { default: myRequire } = await import("./my-require.cjs");
-                return new Response(a + "_" + myRequire("./b.cjs"));
+                const { hello } = await import("./hello.js");
+                return new Response(hello + " World");
               }
             }
-          `,
-        },
-        {
-          type: "NodeJsCompatModule",
-          path: "/my-require.cjs",
-          contents: `
-            module.exports = (...args) => require(...args);
           `,
         },
       ],
@@ -70,7 +53,7 @@ const mf = new Miniflare({
   ],
 });
 
-const resp = await mf.dispatchFetch("http://localhost/a");
+const resp = await mf.dispatchFetch("http://localhost/");
 
 const text = await resp.text();
 
