@@ -1,8 +1,16 @@
 import { Miniflare } from "miniflare";
 
 const modules = {
-  "/hello.js": {
-    esModule: 'export const hello = "Hello";',
+  "/hello/index.js": {
+    esModule: `
+    import { world } from "./world.js";
+    export const hello = "Hello " + world;
+    `,
+  },
+  "/hello/world.js": {
+    esModule: `
+    export const world = "World";
+    `,
   },
 };
 
@@ -14,9 +22,13 @@ const mf = new Miniflare({
     }
 
     const url = new URL(request.url);
-    const specifier = url.searchParams.get("specifier");
+    let specifier = url.searchParams.get("specifier");
     if (!specifier) {
       throw new Error("no specifier provided");
+    }
+
+    if (specifier === "/hello-world/index.js") {
+      specifier = "/hello/index.js";
     }
 
     if (!modules[specifier]) {
@@ -41,8 +53,8 @@ const mf = new Miniflare({
           contents: `
             export default {
               async fetch() {
-                const { hello } = await import("./hello.js");
-                return new Response(hello + " World");
+                const { hello } = await import("./hello-world/index.js");
+                return new Response(hello);
               }
             }
           `,
