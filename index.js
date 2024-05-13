@@ -1,4 +1,4 @@
-import { Miniflare } from "miniflare";
+import { Miniflare, Response } from "miniflare";
 
 const modules = {
   "/hello/index.js": {
@@ -28,7 +28,10 @@ const mf = new Miniflare({
     }
 
     if (specifier === "/hello-world/index.js") {
-      specifier = "/hello/index.js";
+      return new Response("", {
+        headers: { location: "/hello/index.js" },
+        status: 301,
+      });
     }
 
     if (!modules[specifier]) {
