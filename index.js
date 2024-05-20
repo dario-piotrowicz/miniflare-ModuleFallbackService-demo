@@ -46,7 +46,8 @@ const mf = new Miniflare({
       throw new Error("no specifier provided");
     }
 
-    // hacky way to resolve url paths - this is good enough for this demo, but likely not good enough for production use
+    // hacky way to resolve url paths - this is good enough for this demo,
+    // but not good for production use. In Vite, we'll delegate to Vite's dev server instead
     const resolvedSpecifier = rawSpecifier.startsWith('.') ?
 
       // relative imports must be resolved against the referrer, e.g. `./foo.js` or `../
@@ -54,13 +55,13 @@ const mf = new Miniflare({
 
       rawSpecifier.startsWith('/') ?
 
-        // this must be an absolute import to a user-land module, e.g. `/foo/hello.js`
-        // TODO: or also package imports in case node_modules: prefix is not supported by workerd.
+        // this must be an absolute, fully resolved import, e.g. `/foo.js` or `/_vite_external_/...`
         rawSpecifier :
 
         // let's check if this is the original bare import or an internal redirect to satisfy it
         specifier === modules[`/_vite_bare_/${rawSpecifier}`].redirect ?
-          // this is an internal redirect from /_vite_bare_/bar to /_vite_bare_/bar/index.js
+          // this is an internal redirect from /_vite_bare_/bar to
+          // /_vite_externals_/Users/Dario/project/my-project/node_modules/bar/index.js
           specifier :
           // this is a package import, resolve it by prefixing the specifier with '/_vite_bare_/`
           `/_vite_bare_/${rawSpecifier}`;
