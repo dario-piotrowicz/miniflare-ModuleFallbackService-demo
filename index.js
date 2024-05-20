@@ -1,3 +1,4 @@
+// @ts-check
 import { Miniflare } from "miniflare";
 
 const modules = {
@@ -13,8 +14,10 @@ const modules = {
 
     export const foo = " foo" + bar`,
   },
-  // TODO: shouldn't this be "/_bare_/bar", or even "bar/", or ideally just "bar"?
-  "/_bare_/bar/index": {
+  "/_bare_/bar": {
+    redirect: "/_bare_/bar/index.js",
+  },
+  "/_bare_/bar/index.js": {
     esModule: `
     import {baz} from "./baz.js";
 
@@ -27,6 +30,7 @@ const modules = {
 };
 
 const mf = new Miniflare({
+  // @ts-ignore
   unsafeModuleFallbackService(request) {
     const resolveMethod = request.headers.get("X-Resolve-Method");
     if (resolveMethod !== "import" && resolveMethod !== "require") {
@@ -44,17 +48,22 @@ const mf = new Miniflare({
 
     // hacky way to resolve url paths - this is good enough for this demo, but likely not good enough for production use
     const resolvedSpecifier = rawSpecifier.startsWith('.') ?
+
+      // relative imports must be resolved against the referrer, e.g. `./foo.js` or `../
       new URL(rawSpecifier, `https://hostname${referrer}`).pathname :
+
       rawSpecifier.startsWith('/') ?
-        // TODO(discuss): what does it mean to import '/foo.js' vs 'foo.js' vs './foo.js' in workerd?!?
+
+        // this must be an absolute import to a user-land module, e.g. `/foo/hello.js`
+        // TODO: or also package imports in case node_modules: prefix is not supported by workerd.
         rawSpecifier :
-        // TODO(discuss): workerd crashes if we 301 redirect with bare specifier,
-        //    so prefix with /_bare_/ - this is likely a bad idea!
-        rawSpecifier.endsWith('.js') ?
-          `/_bare_/${rawSpecifier}`:
-          // TODO(discuss): workerd crashes if we 301 redirect to location that ends with /,
-          //    so we have to use /index suffix instead
-          `/_bare_/${rawSpecifier}/index`;
+
+        // let's check if this is the original bare import or an internal redirect to satisfy it
+        specifier === modules[`/_bare_/${rawSpecifier}`].redirect ?
+          // this is an internal redirect from /_bare_/bar to /_bare_/bar/index.js
+          specifier :
+          // this is a package import, resolve it by prefixing the specifier with '/_bare_/`
+          `/_bare_/${rawSpecifier}`;
 
     console.log(`--- Fallback service debug info ---
       resolve method:     ${resolveMethod}
@@ -67,14 +76,19 @@ const mf = new Miniflare({
 
     if (specifier !== resolvedSpecifier) {
       console.log(`redirecting module ${specifier} to ${resolvedSpecifier}`);
+      // @ts-ignore
       return new Response(null, {headers: {location: resolvedSpecifier}, status: 301});
     }
-
 
     const resolvedModule = modules[resolvedSpecifier];
 
     if (!resolvedModule) {
       return new Response(null, { status: 404 });
+    }
+
+    if (resolvedModule.redirect) {
+      console.log(`redirecting module ${specifier} to ${resolvedModule.redirect}`);
+      return new Response(null, {headers: {location: resolvedModule.redirect}, status: 301});
     }
 
     return new Response(
