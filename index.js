@@ -14,16 +14,16 @@ const modules = {
 
     export const foo = " foo" + bar`,
   },
-  "/_bare_/bar": {
-    redirect: "/_bare_/bar/index.js",
+  "/_vite_bare_/bar": {
+    redirect: "/_vite_externals_/Users/Dario/project/my-project/node_modules/bar/index.js",
   },
-  "/_bare_/bar/index.js": {
+  "/_vite_externals_/Users/Dario/project/my-project/node_modules/bar/index.js": {
     esModule: `
     import {baz} from "./baz.js";
 
     export const bar = " bar" + baz`,
   },
-  "/_bare_/bar/baz.js": {
+  "/_vite_externals_/Users/Dario/project/my-project/node_modules/bar/baz.js": {
     esModule: `
     export const baz = " baz"`,
   },
@@ -59,19 +59,20 @@ const mf = new Miniflare({
         rawSpecifier :
 
         // let's check if this is the original bare import or an internal redirect to satisfy it
-        specifier === modules[`/_bare_/${rawSpecifier}`].redirect ?
-          // this is an internal redirect from /_bare_/bar to /_bare_/bar/index.js
+        specifier === modules[`/_vite_bare_/${rawSpecifier}`].redirect ?
+          // this is an internal redirect from /_vite_bare_/bar to /_vite_bare_/bar/index.js
           specifier :
-          // this is a package import, resolve it by prefixing the specifier with '/_bare_/`
-          `/_bare_/${rawSpecifier}`;
+          // this is a package import, resolve it by prefixing the specifier with '/_vite_bare_/`
+          `/_vite_bare_/${rawSpecifier}`;
 
-    console.log(`--- Fallback service debug info ---
+    console.log(`\n--- Fallback service debug info ---
       resolve method:     ${resolveMethod}
       url:                ${url}
       specifier:          ${specifier}
       raw specifier:      ${rawSpecifier}
       referrer:           ${referrer}
-      resolved specifier: ${resolvedSpecifier}`
+      resolved specifier: ${resolvedSpecifier}
+      `
     );
 
     if (specifier !== resolvedSpecifier) {
