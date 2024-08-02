@@ -4,6 +4,17 @@ const modules = {
   "/hello.js": {
     esModule: 'export const hello = "Hello";',
   },
+  "/a.cjs": {
+    path: "/a.cjs",
+    commonJsModule: `
+      exports.one = 'ONE';
+
+      module.exports = function(){
+        return 'hello from a.cjs';
+      };
+    `,
+    namedExports: ['one']
+  }
 };
 
 const mf = new Miniflare({
@@ -41,8 +52,14 @@ const mf = new Miniflare({
           contents: `
             export default {
               async fetch() {
-                const { hello } = await import("./hello.js");
-                return new Response(hello + " World");
+                const { default: helloFn, one } = await import("./a.cjs");
+                return new Response(
+                "\\n\\n" + [
+                  "default from a.cjs: " + (helloFn()),
+                  "and one from a.cjs: " + one,
+                ].map(str => \` - \${str}\\n\`).join('\\n')
+                + "\\n\\n"
+                );
               }
             }
           `,
